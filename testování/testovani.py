@@ -27,14 +27,18 @@ class Teplomer:
 
 class TestTeplomer(unittest.TestCase):
     def test_inicializace(self):
-        t1=Teplomer
+        t1=Teplomer()
         self.assertEqual(t1.teplota, 0)
         self.assertEqual(t1.max_teplota, 100)
 
 
-    t2 = Teplomer(max_teplota=150)
-    self.assertEqual(t2.teplota, 0)
-    self.assertEqual(t2.max_teplota, 150)
+        t2 = Teplomer(max_teplota=150)  
+        self.assertEqual(t2.teplota, 0)
+        self.assertEqual(t2.max_teplota, 150)
+
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

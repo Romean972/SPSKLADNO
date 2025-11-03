@@ -14,6 +14,9 @@ ZELENÁ = (0, 255, 0)
 ŽLUTÁ = (255, 255, 0)
 ČERNÁ = (0, 0, 0)
 
+# Jas aplikace (0 = tmavé, 255 = plný jas)
+jas = 255
+
 # Herní okno
 okno = pygame.display.set_mode((ŠÍŘKA, VÝŠKA))
 pygame.display.set_caption("2D Ship Shooter")
@@ -27,11 +30,8 @@ font_skore = pygame.font.Font(None, 30)
 lod_hrac = pygame.image.load("lod1.png").convert_alpha()
 lod_nepritel = pygame.image.load("lod2.png").convert_alpha()
 
-# Zmenšení (pokud jsou velké)
-lod_hrac = pygame.transform.scale(lod_hrac, (60, 60))
+lod_hrac = pygame.transform.scale(lod_hrac, (70, 60))
 lod_nepritel = pygame.transform.scale(lod_nepritel, (60, 60))
-
-# 🔁 Otočení nepřátelské lodě o 180 stupňů
 lod_nepritel = pygame.transform.rotate(lod_nepritel, 180)
 
 # --- TŘÍDY ---
@@ -64,20 +64,18 @@ class Nepřítel(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = lod_nepritel
-        # 🔒 Bezpečný spawn – minimálně 40 px od krajů
         self.rect = self.image.get_rect(center=(
             random.randint(40, ŠÍŘKA - 40),
             random.randint(40, VÝŠKA // 3)
         ))
         self.cooldown = random.randint(60, 120)
-        self.směr = random.choice([-1, 1])  # vodorovný pohyb
+        self.směr = random.choice([-1, 1])
 
     def update(self):
         self.rect.x += self.směr * 2
         if self.rect.left <= 0 or self.rect.right >= ŠÍŘKA:
             self.směr *= -1
 
-        # Střílení
         self.cooldown -= 1
         if self.cooldown <= 0:
             self.cooldown = random.randint(60, 120)
@@ -107,6 +105,33 @@ def vykresli_text(text, font, barva, střed):
     okno.blit(render, rect)
 
 
+def nastaveni():
+    global jas
+    běží = True
+    while běží:
+        okno.fill(ČERNÁ)
+        vykresli_text("NASTAVENÍ", font_nadpis, BÍLÁ, (ŠÍŘKA // 2, 150))
+        vykresli_text(f"Jas: {jas}", font_menu, BÍLÁ, (ŠÍŘKA // 2, 300))
+        vykresli_text("ZVÝŠIT JAS", font_menu, ZELENÁ, (ŠÍŘKA // 2, 380))
+        vykresli_text("SNÍŽIT JAS", font_menu, ČERVENÁ, (ŠÍŘKA // 2, 460))
+        vykresli_text("ZPĚT", font_menu, BÍLÁ, (ŠÍŘKA // 2, 530))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+                if 355 < y < 405:
+                    jas = min(255, jas + 25)
+                elif 435 < y < 485:
+                    jas = max(0, jas - 25)
+                elif 505 < y < 555:
+                    běží = False
+
+
 def menu():
     while True:
         okno.fill(ČERNÁ)
@@ -125,6 +150,8 @@ def menu():
                 x, y = pygame.mouse.get_pos()
                 if 275 < y < 325:
                     hra()
+                elif 355 < y < 405:
+                    nastaveni()
                 elif 435 < y < 485:
                     pygame.quit()
                     sys.exit()
@@ -144,7 +171,7 @@ def hra():
     hodiny = pygame.time.Clock()
     spawn_timer = 0
     běží = True
-    skore = 0  # 🟢 počítadlo skóre
+    skore = 0
 
     while běží:
         hodiny.tick(FPS)
@@ -155,11 +182,12 @@ def hra():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     hráč.střela()
+                elif event.key == pygame.K_r:
+                    běží = False  # návrat do menu
 
         keys = pygame.key.get_pressed()
         hráč.update(keys)
 
-        # Spawn nových nepřátel (ale jen do max. 6)
         spawn_timer += 1
         if spawn_timer > 80 and len(nepřátelé) < 6:
             spawn_timer = 0
@@ -169,23 +197,26 @@ def hra():
 
         všechny_sprity.update()
 
-        # Kolize
         zásahy = pygame.sprite.groupcollide(nepřátelé, hráčovy_střely, True, True)
         skore += len(zásahy)
         if pygame.sprite.spritecollideany(hráč, nepřátelské_střely):
-            běží = False  # konec hry
+            běží = False
 
-        # Vykreslení
         okno.fill(ČERNÁ)
         všechny_sprity.draw(okno)
 
-        # 🟢 vykreslení skóre v levém dolním rohu
         text_skore = font_skore.render(f"Skóre: {skore}", True, BÍLÁ)
         okno.blit(text_skore, (10, VÝŠKA - 30))
 
+        if jas < 255:
+            překryv = pygame.Surface((ŠÍŘKA, VÝŠKA))
+            překryv.set_alpha(255 - jas)
+            překryv.fill(ČERNÁ)
+            okno.blit(překryv, (0, 0))
+
         pygame.display.flip()
 
-    menu()  # po smrti návrat do menu
+    menu()
 
 
 # --- SPUŠTĚNÍ ---

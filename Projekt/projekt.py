@@ -34,6 +34,7 @@ lod_hrac = pygame.transform.scale(lod_hrac, (70, 60))
 lod_nepritel = pygame.transform.scale(lod_nepritel, (60, 60))
 lod_nepritel = pygame.transform.rotate(lod_nepritel, 180)
 
+
 # --- TŘÍDY ---
 class Hráč(pygame.sprite.Sprite):
     def __init__(self):
@@ -96,6 +97,36 @@ class Projektil(pygame.sprite.Sprite):
         self.rect.y += self.rychlost
         if self.rect.bottom < 0 or self.rect.top > VÝŠKA:
             self.kill()
+
+
+class Boss(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.image.load("lod4.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (150, 120))
+        self.rect = self.image.get_rect(center=(ŠÍŘKA // 2, 100))
+        self.rychlost = 3
+        self.směr = 1
+        self.cooldown = 90
+        self.životy = 10
+
+    def update(self):
+        self.rect.x += self.směr * self.rychlost
+        if self.rect.left <= 0 or self.rect.right >= ŠÍŘKA:
+            self.směr *= -1
+
+        self.cooldown -= 1
+        if self.cooldown <= 0:
+            self.cooldown = 90
+            střela1 = Projektil(self.rect.centerx, self.rect.bottom, 6, ŽLUTÁ)
+            střela2 = Projektil(self.rect.left + 20, self.rect.bottom, 6, ŽLUTÁ)
+            střela3 = Projektil(self.rect.right - 20, self.rect.bottom, 6, ŽLUTÁ)
+            všechny_sprity.add(střela1, střela2, střela3)
+            nepřátelské_střely.add(střela1, střela2, střela3)
+
+    def vykresli_životy(self, surface):
+        for i in range(self.životy):
+            pygame.draw.rect(surface, ČERVENÁ, (self.rect.left + i*15, self.rect.top - 20, 10, 10))
 
 
 # --- FUNKCE ---
@@ -173,6 +204,9 @@ def hra():
     běží = True
     skore = 0
 
+    boss = None
+    boss_aktivní = False
+
     while běží:
         hodiny.tick(FPS)
         for event in pygame.event.get():
@@ -188,26 +222,54 @@ def hra():
         keys = pygame.key.get_pressed()
         hráč.update(keys)
 
-        spawn_timer += 1
-        if spawn_timer > 80 and len(nepřátelé) < 6:
-            spawn_timer = 0
-            nepřítel = Nepřítel()
-            všechny_sprity.add(nepřítel)
-            nepřátelé.add(nepřítel)
+        # Spawn nepřátel jen pokud není boss
+        if not boss_aktivní:
+            spawn_timer += 1
+            if spawn_timer > 80 and len(nepřátelé) < 6:
+                spawn_timer = 0
+                nepřítel = Nepřítel()
+                všechny_sprity.add(nepřítel)
+                nepřátelé.add(nepřítel)
+
+        # Spawni bosse po 10 bodech
+        if skore >= 10 and not boss_aktivní:
+            boss = Boss()
+            všechny_sprity.add(boss)
+            boss_aktivní = True
+            nepřátelé.empty()  # vyčisti normální nepřátele
 
         všechny_sprity.update()
 
+        # Zásahy bosse
+        if boss_aktivní:
+            zásahy_boss = pygame.sprite.spritecollide(boss, hráčovy_střely, True)
+            boss.životy -= len(zásahy_boss)
+            if boss.životy <= 0:
+                boss.kill()
+                boss_aktivní = False
+                skore = 0  # reset skóre nebo pokračuj
+
+        # Zásahy normálních nepřátel
         zásahy = pygame.sprite.groupcollide(nepřátelé, hráčovy_střely, True, True)
         skore += len(zásahy)
+
+        # Kolize hráče
         if pygame.sprite.spritecollideany(hráč, nepřátelské_střely):
             běží = False
 
+        # Kreslení
         okno.fill(ČERNÁ)
         všechny_sprity.draw(okno)
 
+        # Kreslení skóre
         text_skore = font_skore.render(f"Skóre: {skore}", True, BÍLÁ)
         okno.blit(text_skore, (10, VÝŠKA - 30))
 
+        # Kreslení životů bosse
+        if boss_aktivní:
+            boss.vykresli_životy(okno)
+
+        # Překrytí pro jas
         if jas < 255:
             překryv = pygame.Surface((ŠÍŘKA, VÝŠKA))
             překryv.set_alpha(255 - jas)

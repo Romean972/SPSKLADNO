@@ -23,12 +23,22 @@ font_nadpis = pygame.font.Font(None, 70)
 font_menu = pygame.font.Font(None, 50)
 font_skore = pygame.font.Font(None, 30)
 
+# Načtení obrázků lodí
+lod_hrac = pygame.image.load("lod1.png").convert_alpha()
+lod_nepritel = pygame.image.load("lod2.png").convert_alpha()
+
+# Zmenšení (pokud jsou velké)
+lod_hrac = pygame.transform.scale(lod_hrac, (60, 60))
+lod_nepritel = pygame.transform.scale(lod_nepritel, (60, 60))
+
+# 🔁 Otočení nepřátelské lodě o 180 stupňů
+lod_nepritel = pygame.transform.rotate(lod_nepritel, 180)
+
 # --- TŘÍDY ---
 class Hráč(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((40, 40))
-        self.image.fill(ZELENÁ)
+        self.image = lod_hrac
         self.rect = self.image.get_rect(center=(ŠÍŘKA // 2, VÝŠKA - 60))
         self.rychlost = 5
 
@@ -53,9 +63,12 @@ class Hráč(pygame.sprite.Sprite):
 class Nepřítel(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((40, 40))
-        self.image.fill(ČERVENÁ)
-        self.rect = self.image.get_rect(center=(random.randint(20, ŠÍŘKA - 20), random.randint(20, VÝŠKA // 3)))
+        self.image = lod_nepritel
+        # 🔒 Bezpečný spawn – minimálně 40 px od krajů
+        self.rect = self.image.get_rect(center=(
+            random.randint(40, ŠÍŘKA - 40),
+            random.randint(40, VÝŠKA // 3)
+        ))
         self.cooldown = random.randint(60, 120)
         self.směr = random.choice([-1, 1])  # vodorovný pohyb
 
@@ -158,7 +171,7 @@ def hra():
 
         # Kolize
         zásahy = pygame.sprite.groupcollide(nepřátelé, hráčovy_střely, True, True)
-        skore += len(zásahy)  # 🟢 přičtení skóre
+        skore += len(zásahy)
         if pygame.sprite.spritecollideany(hráč, nepřátelské_střely):
             běží = False  # konec hry
 
